@@ -13,6 +13,7 @@ use strict;
 use warnings;
 use Test::More;
 use Excel::Writer::XLSX;
+use Archive::Zip ;
 
 
 our @ISA         = qw(Exporter);
