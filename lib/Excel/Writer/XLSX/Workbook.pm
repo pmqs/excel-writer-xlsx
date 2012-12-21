@@ -130,6 +130,8 @@ sub new {
         $self->{_internal_fh} = 0;
     }
     else {
+
+                                                
         my $fh = IO::File->new( $self->{_filename}, 'w' );
 
         return undef unless defined $fh;
@@ -137,7 +139,6 @@ sub new {
         $self->{_filehandle}  = $fh;
         $self->{_internal_fh} = 1;
     }
-
 
     # Set colour palette.
     $self->set_color_palette();
@@ -825,8 +826,14 @@ sub _store_workbook {
     my $packager = Excel::Writer::XLSX::Package::Packager->new();
     my $zip      = Archive::Zip::SimpleZip->new($self->{_filehandle},
                                                 Minimal => 1,
-                                               );
+                                                Encode => 'utf8',
+                                                #Stream  => 1,
+                                                #Zip64  => 1,
+                      #ExtraFieldLocal => [ "\x20\xA2" => "\x00" x 0x0204],
+                                                );
+    croak "Couldn't open file $self->{_filehandle} for writing.\n" unless $zip;
 
+    Excel::Writer::XLSX::Package::XMLwriter::_set_zip($zip);
 
     # Add a default worksheet if non have been added.
     $self->add_worksheet() if not @{ $self->{_worksheets} };
@@ -862,62 +869,10 @@ sub _store_workbook {
     $packager->_set_package_dir( $tempdir );
     $packager->_create_package();
 
-    # Free up the Packager object.
-    $packager = undef;
-
-    # Add the files to the zip archive. Due to issues with Archive::Zip in
-    # taint mode we can't use addTree() so we have to build the file list
-    # with File::Find and pass each one to addFile().
-    my @xlsx_files;
-
-    my $wanted = sub { push @xlsx_files, $File::Find::name if -f };
-
-    File::Find::find(
-        {
-            wanted          => $wanted,
-            untaint         => 1,
-            untaint_pattern => qr|^(.+)$|
-        },
-        $tempdir
-    );
-
-    # Store the xlsx component files with the temp dir name removed.
-    for my $filename ( @xlsx_files ) {
-        my $short_name = $filename;
-        $short_name =~ s{^\Q$tempdir\E/?}{};
-        $zip->add( $filename, Name => $short_name );
-    }
-
     $zip->close();
 
-
-#    if ( $self->{_internal_fh} ) {
-#
-#        if ( $zip->writeToFileHandle( $self->{_filehandle} ) != 0 ) {
-#            carp 'Error writing zip container for xlsx file.';
-#        }
-#    }
-#    else {
-#
-#        # Archive::Zip needs to rewind a filehandle to write the zip headers.
-#        # This won't work for arbitrary user defined filehandles so we use
-#        # a temp file based filehandle to create the zip archive and then
-#        # stream that to the filehandle.
-#        my $tmp_fh = tempfile( DIR => $self->{_tempdir} );
-#        my $is_seekable = 1;
-#
-#        if ( $zip->writeToFileHandle( $tmp_fh, $is_seekable ) != 0 ) {
-#            carp 'Error writing zip container for xlsx file.';
-#        }
-#
-#        my $buffer;
-#        seek $tmp_fh, 0, 0;
-#
-#        while ( read( $tmp_fh, $buffer, 4_096 ) ) {
-#            local $\ = undef;    # Protect print from -l on commandline.
-#            print { $self->{_filehandle} } $buffer;
-#        }
-#    }
+    # Free up the Packager object.
+    $packager = undef;
 }
 
 

@@ -27,9 +27,10 @@ use warnings;
 use Exporter;
 use Carp;
 use IO::File;
+use Excel::Writer::XLSX::Package::XMLwriter;
 use utf8;
 
-our @ISA     = qw(Exporter);
+our @ISA     = qw(Exporter Excel::Writer::XLSX::Package::XMLwriter);
 our $VERSION = '0.62';
 
 
@@ -47,16 +48,16 @@ our $VERSION = '0.62';
 # Constructor.
 #
 sub new {
-
     my $class = shift;
+    my $fh    = shift;
+    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    my $self = {};
+    $self->{_properties} = {};
 
     bless $self, $class;
 
     return $self;
 }
-
 
 ###############################################################################
 #
@@ -69,27 +70,30 @@ sub _assemble_xml_file {
     my $self = shift;
 
     $self->_write_theme_file();
+    # Close the XML writer filehandle.
+    $self->xml_get_fh()->close();
 }
 
 
-###############################################################################
+
+################################################################################
+##
+## _set_xml_writer()
+##
+## Set the filehandle only. This class doesn't use a real XML writer class.
+##
+#sub _set_xml_writer {
 #
-# _set_xml_writer()
+#    my $self     = shift;
+#    my $filename = shift;
 #
-# Set the filehandle only. This class doesn't use a real XML writer class.
+#    my $fh = IO::File->new( $filename, 'w' );
+#    croak "Couldn't open file $filename for writing.\n" unless $fh;
 #
-sub _set_xml_writer {
-
-    my $self     = shift;
-    my $filename = shift;
-
-    my $fh = IO::File->new( $filename, 'w' );
-    croak "Couldn't open file $filename for writing.\n" unless $fh;
-
-    binmode $fh, ':utf8';
-
-    $self->{_fh} = $fh;
-}
+#    binmode $fh, ':utf8';
+#
+#    $self->{_fh} = $fh;
+#}
 
 
 ###############################################################################

@@ -23,6 +23,7 @@ use IO::File;
 our @ISA     = qw(Exporter);
 our $VERSION = '0.62';
 
+our $zipFH = undef;
 #
 # NOTE: this module is a light weight re-implementation of XML::Writer. See
 # the Pod docs below for a full explanation. The methods  are implemented
@@ -67,12 +68,38 @@ sub _set_xml_writer {
     my $self     = shift;
     my $filename = shift;
 
-    my $fh = IO::File->new( $filename, 'w' );
-    croak "Couldn't open file $filename for writing.\n" unless $fh;
+    my $fh ;
 
-    binmode $fh, ':utf8';
+    if (defined $zipFH)
+    {
+        $fh = $zipFH->openMember(Name => $filename) ;
+        croak "Couldn't open file $filename for writing.\n" unless $fh;
+    }
+    else
+    {
+        $fh = IO::File->new( $filename, 'w' );
+        croak "Couldn't open file $filename for writing.\n" unless $fh;
+
+        binmode $fh, ':utf8';
+    }
 
     $self->{_fh} = $fh;
+}
+
+
+sub _set_zip
+{
+    my $zip  = shift;
+    $zipFH   = $zip ;
+}
+
+sub _addFile
+{
+    my $self     = shift;
+    my $filename = shift;
+    my $storeAs  = shift ;
+    
+    $zipFH->add($filename, Name => $storeAs);   
 }
 
 
