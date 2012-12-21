@@ -15,10 +15,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use Pod::Usage;
-use Archive::Zip;
-
-# Ignore Archive::Zip error messages. Use its return codes only.
-Archive::Zip::setErrorHandler( sub { } );
+use IO::Uncompress::Unzip qw(unzip $UnzipError);
 
 my $help        = 0;
 my $filename    = $ARGV[0];
@@ -35,26 +32,29 @@ pod2usage( -verbose => 2 ) if $help;
 pod2usage() if @ARGV == 0 && -t STDIN;
 
 
-# Use Archive::Zip to handle the Excel xlsm/zip file.
-my $zip   = Archive::Zip->new();
-my $error = $zip->read( $filename );
+unzip($filename => $vba_project, Name => 'xl/' . $vba_project)
+    or die "Couldn't read '$filename': $UnzipError.\n";
 
-if ( $error == 3 ) {
-    die "File '$filename' doesn't appear to be an 'xlsxm/zip' file.\n";
-}
-elsif ( $error != 0 ) {
-    die "Couldn't read '$filename': $!.\n";
-}
-
-# Extract the vbaProject.bin from the Excel xlsm/zip file.
-$error = $zip->extractMemberWithoutPaths( 'xl/' . $vba_project );
-
-if ( !$error ) {
-    print "Extracted '$vba_project' successfully\n";
-}
-else {
-    die "Failed to extract '$vba_project' from $filename.\n";
-}
+### Use Archive::Zip to handle the Excel xlsm/zip file.
+##my $zip   = Archive::Zip->new();
+##my $error = $zip->read( $filename );
+##
+##if ( $error == 3 ) {
+##    die "File '$filename' doesn't appear to be an 'xlsxm/zip' file.\n";
+##}
+##elsif ( $error != 0 ) {
+##    die "Couldn't read '$filename': $!.\n";
+##}
+##
+### Extract the vbaProject.bin from the Excel xlsm/zip file.
+##$error = $zip->extractMemberWithoutPaths( 'xl/' . $vba_project );
+##
+##if ( !$error ) {
+##    print "Extracted '$vba_project' successfully\n";
+##}
+##else {
+##    die "Failed to extract '$vba_project' from $filename.\n";
+##}
 
 
 # The mod data on vbaProject.bin isn't generally set correctly in the xlsm/zip

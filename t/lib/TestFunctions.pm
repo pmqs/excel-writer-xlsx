@@ -13,7 +13,7 @@ use strict;
 use warnings;
 use Test::More;
 use Excel::Writer::XLSX;
-use Archive::Zip ;
+use IO::Uncompress::Unzip qw($UnzipError);
 
 
 our @ISA         = qw(Exporter);
@@ -153,6 +153,31 @@ sub _vml_str_to_array {
     return ( split "\n", $vml_str );
 }
 
+sub slurpZipFile
+{
+    my $filename = shift ;
+
+    my %zipData = () ;
+    my $unzip = IO::Uncompress::Unzip->new($filename, Append => 1)
+        or return ();
+
+    my $status;
+    for ($status = 1; $status > 0; $status = $unzip->nextStream())
+    {
+ 
+        my $name = $unzip->getHeaderInfo()->{Name};
+        #warn "Processing member $name\n" ;
+
+        my $buff;
+        1 while ($status = $unzip->read($buff)) > 0 ;
+
+        return () if $status < 0;
+
+        $zipData{$name} = $buff ;
+    }
+
+    return %zipData ;
+}
 
 ###############################################################################
 #
@@ -177,36 +202,33 @@ sub _compare_xlsx_files {
     my $exp_filename    = shift;
     my $ignore_members  = shift;
     my $ignore_elements = shift;
-    my $got_zip         = Archive::Zip->new();
-    my $exp_zip         = Archive::Zip->new();
+    my %got_zip         = slurpZipFile($got_filename);
+    my %exp_zip         = slurpZipFile($exp_filename);
     my @got_xml;
     my @exp_xml;
 
-    # Suppress Archive::Zip error reporting. We will handle errors.
-    Archive::Zip::setErrorHandler( sub { } );
-
     # Test the $got file exists.
-    if ( $got_zip->read( $got_filename ) != 0 ) {
+    if ( ! keys %got_zip ) {
         my $error = "Excel::Write::XML generated file not found.";
         return ( [$error], [$got_filename], " _compare_xlsx_files(). Files." );
     }
 
     # Test the $exp file exists.
-    if ( $exp_zip->read( $exp_filename ) != 0 ) {
+    if ( ! keys %exp_zip ) {
         my $error = "Excel generated comparison file not found.";
         return ( [$error], [$exp_filename], " _compare_xlsx_files(). Files." );
     }
 
     # The zip "members" are the files in the XLSX container.
-    my @got_members = sort $got_zip->memberNames();
-    my @exp_members = sort $exp_zip->memberNames();
+    my @got_members = sort keys %got_zip;
+    my @exp_members = sort keys %exp_zip;
 
     # Ignore some test specific filenames.
     if ( defined $ignore_members && @$ignore_members ) {
         my $ignore_regex = join '|', @$ignore_members;
 
-        @got_members = grep { !/$ignore_regex/ } @got_members;
-        @exp_members = grep { !/$ignore_regex/ } @exp_members;
+        @got_members = grep { !/$ignore_regex/ } @got_members ;
+        @exp_members = grep { !/$ignore_regex/ } @exp_members ;
     }
 
     # Check that each XLSX container has the same file members.
@@ -217,8 +239,8 @@ sub _compare_xlsx_files {
 
     # Compare each file in the XLSX containers.
     for my $filename ( @exp_members ) {
-        my $got_xml_str = $got_zip->contents( $filename );
-        my $exp_xml_str = $exp_zip->contents( $filename );
+        my $got_xml_str = $got_zip{ $filename };
+        my $exp_xml_str = $exp_zip{ $filename };
 
         # Remove dates and user specific data from the core.xml data.
         if ( $filename eq 'docProps/core.xml' ) {

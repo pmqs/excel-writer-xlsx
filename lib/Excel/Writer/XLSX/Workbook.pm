@@ -22,6 +22,7 @@ use IO::File;
 use File::Find;
 use File::Temp qw(tempfile);
 use File::Basename 'fileparse';
+use FileHandle;
 use Archive::Zip::SimpleZip 0.007;
 use Excel::Writer::XLSX::Worksheet;
 use Excel::Writer::XLSX::Chartsheet;
@@ -822,9 +823,9 @@ sub _store_workbook {
     my $self     = shift;
     my $tempdir  = File::Temp->newdir( DIR => $self->{_tempdir} );
     my $packager = Excel::Writer::XLSX::Package::Packager->new();
-    my $zip      = Archive::Zip::SimpleZip->new($self->{_filehandle} ,
-                                        Minimal => 1,
-                                        Encode => 'utf8');
+    my $zip      = Archive::Zip::SimpleZip->new($self->{_filehandle},
+                                                Minimal => 1,
+                                               );
 
 
     # Add a default worksheet if non have been added.
@@ -884,9 +885,10 @@ sub _store_workbook {
     for my $filename ( @xlsx_files ) {
         my $short_name = $filename;
         $short_name =~ s{^\Q$tempdir\E/?}{};
-        #$zip->addFile( $filename, $short_name );
         $zip->add( $filename, Name => $short_name );
     }
+
+    $zip->close();
 
 
 #    if ( $self->{_internal_fh} ) {
